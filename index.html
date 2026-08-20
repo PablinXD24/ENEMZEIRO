@@ -39,6 +39,27 @@
             transition: background 0.5s ease;
         }
 
+        /* BANNER DE NOTIFICAÇÃO IN-INTERFACE */
+        .toast-notification {
+            position: fixed;
+            top: -70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ff4d4d;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            z-index: 10001;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            transition: top 0.4s var(--island-bezier);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .toast-notification.active { top: 20px; }
+
         /* DYNAMIC ISLAND */
         .island-container {
             position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
@@ -167,6 +188,10 @@
             display: block;
             margin-bottom: 8px;
         }
+        .config-group.disabled-group {
+            opacity: 0.4;
+            pointer-events: none;
+        }
         .config-btns-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -281,7 +306,6 @@
             box-shadow: 0 0 10px rgba(0, 98, 255, 0.2);
         }
 
-        /* ESTILO LIMPO DO CÓDIGO DA SALA DENTRO DO CARD BRANCO */
         .room-code-clean {
             font-family: var(--font-title);
             font-size: clamp(3.5rem, 14vw, 5rem);
@@ -291,7 +315,6 @@
             margin: 5px 0 15px 0;
         }
 
-        /* LISTA LIMPA DE PARTICIPANTES SEM CARDS INDIVIDUAIS */
         .lobby-players-clean {
             display: flex;
             flex-direction: column;
@@ -467,45 +490,55 @@
 <div class="noise"></div>
 <div id="flash-layer" class="flash-overlay"></div>
 
+<!-- CONTAINER DE NOTIFICAÇÕES (TOAST) -->
+<div id="toast-banner" class="toast-notification">
+    <i class="fa-solid fa-circle-exclamation"></i>
+    <span id="toast-msg">Mensagem de Notificação</span>
+</div>
+
 <button class="config-btn" onclick="toggleConfigModal()">
     <i class="fa-solid fa-gear"></i>
 </button>
 
 <div id="config-modal" class="config-modal">
     <div class="config-card">
-        <h2 style="font-family: var(--font-title); font-size: 2rem; margin-bottom: 15px; text-align: center; color: var(--navy-dark);">⚙️ PAINEL HOST</h2>
+        <h2 style="font-family: var(--font-title); font-size: 2rem; margin-bottom: 15px; text-align: center; color: var(--navy-dark);">⚙️ CONFIGURAÇÕES</h2>
         
+        <!-- SOM LIBERADO PARA QUALQUER PARTICIPANTE -->
         <div class="config-group">
-            <label>Pontos para Vencer (1º Lugar):</label>
-            <div class="config-btns-grid" style="grid-template-columns: repeat(3, 1fr);">
-                <button type="button" class="config-option-btn" id="target-btn-50" onclick="setSetting('targetScore', 50)">50 pts</button>
-                <button type="button" class="config-option-btn active" id="target-btn-100" onclick="setSetting('targetScore', 100)">100 pts</button>
-                <button type="button" class="config-option-btn" id="target-btn-150" onclick="setSetting('targetScore', 150)">150 pts</button>
-            </div>
-        </div>
-
-        <div class="config-group">
-            <label>Sons do Jogo:</label>
+            <label>Sons do Jogo (Geral):</label>
             <div class="config-btns-grid">
                 <button type="button" class="config-option-btn active" id="snd-btn-true" onclick="setSetting('sound', true)">Ativado</button>
                 <button type="button" class="config-option-btn" id="snd-btn-false" onclick="setSetting('sound', false)">Desativado</button>
             </div>
         </div>
 
-        <div class="config-group">
-            <label>Avanço de Resposta:</label>
-            <div class="config-btns-grid">
-                <button type="button" class="config-option-btn active" id="adv-btn-auto" onclick="setSetting('advance', 'auto')">Automático</button>
-                <button type="button" class="config-option-btn" id="adv-btn-manual" onclick="setSetting('advance', 'manual')">Manual (Click)</button>
+        <!-- OPÇÕES EXCLUSIVAS DO HOST (BLOQUEADAS PARA DEMAIS) -->
+        <div id="host-only-settings">
+            <div class="config-group">
+                <label>Pontos para Vencer (1º Lugar):</label>
+                <div class="config-btns-grid" style="grid-template-columns: repeat(3, 1fr);">
+                    <button type="button" class="config-option-btn" id="target-btn-50" onclick="setSetting('targetScore', 50)">50 pts</button>
+                    <button type="button" class="config-option-btn active" id="target-btn-100" onclick="setSetting('targetScore', 100)">100 pts</button>
+                    <button type="button" class="config-option-btn" id="target-btn-150" onclick="setSetting('targetScore', 150)">150 pts</button>
+                </div>
             </div>
-        </div>
 
-        <div class="config-group">
-            <label>Tempo por Pergunta:</label>
-            <div class="config-btns-grid" style="grid-template-columns: repeat(3, 1fr);">
-                <button type="button" class="config-option-btn" id="time-btn-5" onclick="setSetting('timer', 5)">5s</button>
-                <button type="button" class="config-option-btn active" id="time-btn-10" onclick="setSetting('timer', 10)">10s</button>
-                <button type="button" class="config-option-btn" id="time-btn-20" onclick="setSetting('timer', 20)">20s</button>
+            <div class="config-group">
+                <label>Avanço de Resposta:</label>
+                <div class="config-btns-grid">
+                    <button type="button" class="config-option-btn active" id="adv-btn-auto" onclick="setSetting('advance', 'auto')">Automático</button>
+                    <button type="button" class="config-option-btn" id="adv-btn-manual" onclick="setSetting('advance', 'manual')">Manual (Click)</button>
+                </div>
+            </div>
+
+            <div class="config-group">
+                <label>Tempo por Pergunta:</label>
+                <div class="config-btns-grid" style="grid-template-columns: repeat(3, 1fr);">
+                    <button type="button" class="config-option-btn" id="time-btn-5" onclick="setSetting('timer', 5)">5s</button>
+                    <button type="button" class="config-option-btn active" id="time-btn-10" onclick="setSetting('timer', 10)">10s</button>
+                    <button type="button" class="config-option-btn" id="time-btn-20" onclick="setSetting('timer', 20)">20s</button>
+                </div>
             </div>
         </div>
 
@@ -630,7 +663,7 @@
     <div class="podium-container" id="podium-display">
     </div>
 
-    <button class="btn btn-hard" style="margin-top: 20px; width: 80%; max-width: 320px;" onclick="location.reload()">NOVO SIMULADO</button>
+    <button class="btn btn-hard" style="margin-top: 20px; width: 80%; max-width: 320px;" onclick="resetGameSession()">NOVO SIMULADO</button>
 </div>
 
 <script type="module">
@@ -689,6 +722,15 @@
     let timeRemaining = 10;
     let rouletteInterval = null;
 
+    // SISTEMA DE NOTIFICAÇÃO DENTRO DA INTERFACE (TOAST)
+    function showToast(msg) {
+        const toast = document.getElementById('toast-banner');
+        document.getElementById('toast-msg').innerText = msg;
+        toast.classList.add('active');
+        setTimeout(() => toast.classList.remove('active'), 3000);
+    }
+    window.showToast = showToast;
+
     function showScreen(id) {
         stopTimer();
         document.querySelectorAll('.screen').forEach(s => {
@@ -715,15 +757,42 @@
         return code;
     }
 
+    // RESTAURAÇÃO DE SESSÃO AO RECARREGAR PÁGINA
+    window.addEventListener('DOMContentLoaded', async () => {
+        const savedRoom = localStorage.getItem('ez_room');
+        const savedUser = localStorage.getItem('ez_user');
+        const savedName = localStorage.getItem('ez_name');
+        const savedHost = localStorage.getItem('ez_host');
+
+        if(savedRoom && savedUser && savedName) {
+            currentRoomCode = savedRoom;
+            myUserId = savedUser;
+            myUserName = savedName;
+            amIHost = (savedHost === 'true');
+
+            const snap = await get(ref(db, `rooms/${currentRoomCode}`));
+            if(snap.exists()) {
+                listenToRoom();
+            } else {
+                localStorage.clear();
+            }
+        }
+    });
+
     window.createRoom = async () => {
         const nameInput = document.getElementById('username-input').value.trim();
-        if(!nameInput) { alert("Por favor, digite seu nome!"); return; }
+        if(!nameInput) { showToast("Por favor, digite seu nome!"); return; }
 
         playSound('snd-click');
         myUserName = nameInput;
         myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
         currentRoomCode = generateRoomCode();
         amIHost = true;
+
+        localStorage.setItem('ez_room', currentRoomCode);
+        localStorage.setItem('ez_user', myUserId);
+        localStorage.setItem('ez_name', myUserName);
+        localStorage.setItem('ez_host', 'true');
 
         const initialRoomData = {
             host: myUserId,
@@ -742,13 +811,13 @@
         const nameInput = document.getElementById('username-input').value.trim();
         const codeInput = document.getElementById('roomcode-input').value.trim().toUpperCase();
 
-        if(!nameInput) { alert("Por favor, digite seu nome!"); return; }
-        if(codeInput.length !== 4) { alert("O código da sala deve ter 4 caracteres!"); return; }
+        if(!nameInput) { showToast("Por favor, digite seu nome!"); return; }
+        if(codeInput.length !== 4) { showToast("O código da sala deve ter 4 caracteres!"); return; }
 
         playSound('snd-click');
         const snap = await get(ref(db, `rooms/${codeInput}`));
         if(!snap.exists()) {
-            alert("Sala não encontrada! Verifique o código.");
+            showToast("Sala não encontrada! Verifique o código.");
             return;
         }
 
@@ -756,6 +825,11 @@
         myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
         currentRoomCode = codeInput;
         amIHost = false;
+
+        localStorage.setItem('ez_room', currentRoomCode);
+        localStorage.setItem('ez_user', myUserId);
+        localStorage.setItem('ez_name', myUserName);
+        localStorage.setItem('ez_host', 'false');
 
         await update(ref(db, `rooms/${currentRoomCode}/players/${myUserId}`), {
             name: myUserName,
@@ -777,6 +851,7 @@
             settings = data.settings || settings;
 
             updateIslandUI();
+            updateConfigUI();
 
             if(data.status === 'lobby') {
                 showScreen('screen-lobby');
@@ -1086,6 +1161,31 @@
         islandList.innerHTML = htmlList;
     }
 
+    function updateConfigUI() {
+        const hostGroup = document.getElementById('host-only-settings');
+        if(!amIHost) {
+            hostGroup.classList.add('disabled-group');
+        } else {
+            hostGroup.classList.remove('disabled-group');
+        }
+
+        document.getElementById('snd-btn-true').className = settings.soundEnabled ? 'config-option-btn active' : 'config-option-btn';
+        document.getElementById('snd-btn-false').className = !settings.soundEnabled ? 'config-option-btn active' : 'config-option-btn';
+        
+        document.getElementById('adv-btn-auto').className = settings.advanceMode === 'auto' ? 'config-option-btn active' : 'config-option-btn';
+        document.getElementById('adv-btn-manual').className = settings.advanceMode === 'manual' ? 'config-option-btn active' : 'config-option-btn';
+
+        [5, 10, 20].forEach(t => {
+            const btn = document.getElementById(`time-btn-${t}`);
+            if(btn) btn.className = (settings.timerDuration === t) ? 'config-option-btn active' : 'config-option-btn';
+        });
+
+        [50, 100, 150].forEach(s => {
+            const btn = document.getElementById(`target-btn-${s}`);
+            if(btn) btn.className = (settings.targetScore === s) ? 'config-option-btn active' : 'config-option-btn';
+        });
+    }
+
     function showPodium(data) {
         showScreen('screen-winner');
         playSound('snd-safe');
@@ -1127,33 +1227,33 @@
         `;
     }
 
+    window.resetGameSession = () => {
+        localStorage.clear();
+        location.reload();
+    };
+
     window.toggleConfigModal = () => {
-        if(!amIHost) { alert("Apenas o Host pode alterar as configurações da sala!"); return; }
         playSound('snd-click');
         document.getElementById('config-modal').classList.toggle('active');
     };
 
     window.setSetting = async (type, value) => {
         playSound('snd-click');
-        settings[type] = value;
-        if(currentRoomCode && amIHost) {
-            await update(ref(db, `rooms/${currentRoomCode}/settings`), settings);
-        }
 
         if(type === 'sound') {
-            document.getElementById('snd-btn-true').className = value ? 'config-option-btn active' : 'config-option-btn';
-            document.getElementById('snd-btn-false').className = !value ? 'config-option-btn active' : 'config-option-btn';
-        } else if(type === 'advance') {
-            document.getElementById('adv-btn-auto').className = value === 'auto' ? 'config-option-btn active' : 'config-option-btn';
-            document.getElementById('adv-btn-manual').className = value === 'manual' ? 'config-option-btn active' : 'config-option-btn';
-        } else if(type === 'timer') {
-            [5, 10, 20].forEach(t => {
-                document.getElementById(`time-btn-${t}`).className = t === value ? 'config-option-btn active' : 'config-option-btn';
-            });
-        } else if(type === 'targetScore') {
-            [50, 100, 150].forEach(s => {
-                document.getElementById(`target-btn-${s}`).className = s === value ? 'config-option-btn active' : 'config-option-btn';
-            });
+            settings.soundEnabled = value;
+            updateConfigUI();
+            return;
+        }
+
+        if(!amIHost) {
+            showToast("Apenas o Host pode alterar as regras da partida!");
+            return;
+        }
+
+        settings[type] = value;
+        if(currentRoomCode) {
+            await update(ref(db, `rooms/${currentRoomCode}/settings`), settings);
         }
     };
 
