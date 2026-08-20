@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ENEMZEIRO - Simulado ENEM</title>
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700;900&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+
+        :root {
+            --navy-dark: #002561;
+            --blue-bright: #1971FF;
+            --blue-vibrant: #0062FF;
+            --gold-dark: #B37800;
+            --yellow-accent: #FFAB00;
+
+            --bg-main: #002561;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --card-border: rgba(255, 255, 255, 0.2);
+            --font-title: 'Passion One', cursive;
+            --font-body: 'Plus Jakarta Sans', sans-serif;
+            --island-bezier: cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: var(--bg-main);
+            color: #ffffff;
+            height: 100vh; width: 100vw; overflow: hidden;
+            font-family: var(--font-body);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(25, 113, 255, 0.4) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(255, 171, 0, 0.25) 0%, transparent 45%);
+            transition: background 0.5s ease;
+        }
+
+        /* DYNAMIC ISLAND MODERNIZADA COM RANKING E PONTOS */
+        .island-container {
+            position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
+            z-index: 9999; width: 100%; display: flex; justify-content: center; pointer-events: none;
+        }
+        .island {
+            background: rgba(0, 37, 97, 0.85);
+            color: #ffffff; padding: 10px 22px;
+            border-radius: 30px; display: flex; align-items: center; gap: 12px;
+            min-width: 200px; max-width: 90%; transition: all 0.5s var(--island-bezier);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            cursor: pointer; pointer-events: auto;
+            flex-direction: column; height: 45px; overflow: hidden;
+        }
+        .island-compact {
+            display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 25px;
+            transition: opacity 0.2s ease, transform 0.3s var(--island-bezier);
+        }
+        .island-title { font-family: var(--font-title); font-size: 1.1rem; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
+        .island-icon { font-size: 1rem; animation: pulse 1.5s infinite; color: var(--yellow-accent); }
+        
+        .island.expanded {
+            border-radius: 24px; padding: 20px; min-width: 320px; height: 340px;
+            background: rgba(0, 37, 97, 0.95);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--blue-bright);
+        }
+        .island.expanded .island-compact {
+            opacity: 0.4; transform: scale(0.95);
+        }
+        .island-content {
+            width: 100%; flex-direction: column; gap: 10px; margin-top: 15px;
+            opacity: 0; transform: translateY(-10px) scale(0.95); pointer-events: none;
+            transition: opacity 0.3s ease 0.1s, transform 0.4s var(--island-bezier) 0.1s;
+            overflow-y: auto; display: flex; height: calc(100% - 35px);
+            padding-right: 2px;
+        }
+        .island.expanded .island-content { 
+            opacity: 1; transform: translateY(0) scale(1); pointer-events: auto;
+        }
+        
+        .island-player-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px; border-radius: 12px;
+            font-size: 0.9rem; font-weight: 600; background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            animation: islandItemPop 0.4s var(--island-bezier) both;
+        }
+        .island-player-row.eliminated-row {
+            opacity: 0.5;
+            text-decoration: line-through;
+            background: rgba(255, 77, 77, 0.1);
+        }
+        .island-rank-badge {
+            font-family: var(--font-title); font-size: 1.1rem; color: var(--yellow-accent); margin-right: 8px; width: 20px;
+        }
+        .island-player-name { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .island-score-tag { font-weight: 800; color: var(--yellow-accent); margin-left: 5px; font-size: 0.85rem; }
+        .island-skulls { display: flex; gap: 6px; color: rgba(255,255,255,0.2); align-items: center; }
+        .island-skulls .active-skull { color: #ff4d4d; transform: scale(1.1); filter: drop-shadow(0 0 5px rgba(255,77,77,0.8)); }
+
+        .island-content::-webkit-scrollbar { width: 4px; }
+        .island-content::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+
+        @keyframes islandItemPop {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* BOTAO E MODAL DE CONFIGURAÇÕES */
+        .config-btn {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 9999;
+            background: rgba(0, 37, 97, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+            backdrop-filter: blur(10px);
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+        .config-btn:hover {
+            transform: scale(1.1) rotate(30deg);
+            background: var(--blue-vibrant);
+        }
+
+        .config-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 37, 97, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .config-modal.active { display: flex; }
+        .config-card {
+            background: #ffffff;
+            color: var(--navy-dark);
+            padding: 25px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            text-align: left;
+        }
+        .config-group {
+            margin-bottom: 18px;
+        }
+        .config-group label {
+            font-size: 0.85rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #555;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .config-btns-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        .config-option-btn {
+            background: #eef2f7;
+            border: 2px solid #d1d9e6;
+            color: var(--navy-dark);
+            padding: 10px;
+            border-radius: 10px;
+            font-family: var(--font-body);
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .config-option-btn.active {
+            background: var(--blue-vibrant);
+            border-color: var(--blue-vibrant);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 98, 255, 0.3);
+        }
+
+        .noise { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: url('https://grainy-gradients.vercel.app/noise.svg'); 
+            opacity: 0.03; pointer-events: none; z-index: 999;
+        }
+        
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; flex-direction: column; padding: 25px;
+            align-items: center; justify-content: center; text-align: center;
+            z-index: 10;
+        }
+        .screen.active { display: flex; animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        @keyframes slideUp { 
+            from { opacity: 0; transform: translateY(20px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+
+        .bg-mega-timer {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-title);
+            font-size: min(90vw, 75vh);
+            font-weight: 900;
+            color: var(--yellow-accent);
+            opacity: 0.35;
+            z-index: 1;
+            pointer-events: none;
+            user-select: none;
+            line-height: 1;
+            filter: drop-shadow(0 0 30px rgba(255, 171, 0, 0.3));
+            transition: all 0.3s ease;
+        }
+        .bg-mega-timer.danger {
+            color: #ff3333;
+            opacity: 0.5;
+            filter: drop-shadow(0 0 50px rgba(255, 51, 51, 0.6));
+            animation: pulseTimer 0.4s infinite alternate;
+        }
+
+        @keyframes pulseTimer {
+            from { transform: scale(1); }
+            to { transform: scale(1.08); }
+        }
+
+        h1 { 
+            font-family: var(--font-title);
+            font-size: clamp(3.5rem, 12vw, 5rem); font-weight: 900; line-height: 0.9; 
+            text-transform: uppercase; margin-bottom: 20px; 
+            color: #ffffff;
+            letter-spacing: 1px;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .card {
+            background: var(--card-bg);
+            color: var(--navy-dark);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 32px 24px;
+            width: 100%; max-width: 420px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+            position: relative; z-index: 2;
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+        }
+
+        .elimination-card {
+            background: #ffffff;
+            border: 4px dashed #ff4d4d;
+            border-radius: 24px;
+            padding: 30px 20px;
+            width: 100%; max-width: 380px;
+            color: var(--navy-dark);
+            box-shadow: 0 20px 40px rgba(255, 77, 77, 0.3);
+            animation: popIn 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.7) rotate(-5deg); opacity: 0; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        .btn { 
+            background: var(--blue-vibrant); color: #ffffff; border: none; padding: 18px 24px; 
+            border-radius: 16px; font-family: var(--font-body); font-weight: 700; 
+            font-size: 1rem; width: 100%; cursor: pointer; text-transform: uppercase; 
+            margin-bottom: 12px; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 8px 20px rgba(0, 98, 255, 0.35);
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            letter-spacing: 0.5px;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(0, 98, 255, 0.5); background: var(--blue-bright); }
+        .btn:active { transform: translateY(1px); box-shadow: 0 4px 10px rgba(0, 98, 255, 0.3); }
+        
+        .btn-safe { background: var(--blue-vibrant); color: white; }
+        .btn-hard { background: var(--yellow-accent); color: var(--navy-dark); box-shadow: 0 8px 20px rgba(255, 171, 0, 0.35); }
+        .btn-hard:hover { background: #ffbe33; box-shadow: 0 12px 25px rgba(255, 171, 0, 0.5); }
+
+        .strikes-container { display: flex; gap: 20px; justify-content: center; margin-bottom: 20px; z-index: 2; }
+        .strike-skull { 
+            font-size: 2rem;
+            color: rgba(255, 255, 255, 0.2); 
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        }
+        .strike-skull.active { 
+            color: #ff4d4d; 
+            transform: scale(1.25);
+            filter: drop-shadow(0 0 10px rgba(255, 77, 77, 0.6));
+        }
+
+        .vote-row { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 15px; }
+        .vote-btns { display: flex; gap: 12px; width: 100%; }
+        .btn-fail { background: rgba(255, 77, 77, 0.15); color: #ff4d4d; border: 2px solid #ff4d4d; box-shadow: none; }
+        .btn-fail:hover { background: #ff4d4d; color: white; box-shadow: 0 8px 20px rgba(255, 77, 77, 0.4); }
+        .btn-pass { background: rgba(30, 215, 96, 0.15); color: #1ed760; border: 2px solid #1ed760; box-shadow: none; }
+        .btn-pass:hover { background: #1ed760; color: white; box-shadow: 0 8px 20px rgba(30, 215, 96, 0.4); }
+
+        .flash-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 99; transition: background 0.1s; }
+        
+        .strike-bg { background-color: #3b000b !important; animation: shake 0.4s ease-in-out; }
+        .safe-bg { background-color: #002e1c !important; color: white; }
+        
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+
+        .punishment-box { 
+            background: rgba(255, 255, 255, 0.95); color: var(--navy-dark); 
+            padding: 24px; border-radius: 20px; margin-top: 20px; 
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        .bottle-icon-container {
+            font-size: 5rem;
+            color: var(--yellow-accent);
+            display: inline-block;
+            filter: drop-shadow(0 0 20px rgba(255, 171, 0, 0.6));
+            animation: fastSpin 1.2s cubic-bezier(0.1, 0.8, 0.1, 1) infinite;
+        }
+        @keyframes fastSpin {
+            0% { transform: rotate(0deg) scale(0.9); }
+            100% { transform: rotate(1440deg) scale(1.1); }
+        }
+
+        .podium-container {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            max-width: 420px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            height: 240px;
+        }
+        .podium-slot {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+        }
+        .podium-player-name {
+            font-weight: 800;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+            max-width: 90px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #ffffff;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+        }
+        .podium-player-pts {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--yellow-accent);
+            margin-bottom: 6px;
+        }
+        .podium-bar {
+            width: 100%;
+            border-radius: 16px 16px 0 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 12px;
+            font-family: var(--font-title);
+            font-size: 2.2rem;
+            color: var(--navy-dark);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            animation: growUp 0.8s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+            transform-origin: bottom;
+        }
+        @keyframes growUp {
+            from { transform: scaleY(0); }
+            to { transform: scaleY(1); }
+        }
+        .podium-1 {
+            height: 180px;
+            background: linear-gradient(180deg, #FFAB00 0%, #B37800 100%);
+            box-shadow: 0 0 30px rgba(255, 171, 0, 0.5);
+        }
+        .podium-2 {
+            height: 130px;
+            background: linear-gradient(180deg, #E0E0E0 0%, #9E9E9E 100%);
+        }
+        .podium-3 {
+            height: 95px;
+            background: linear-gradient(180deg, #CD7F32 0%, #8C4A11 100%);
+        }
+        .podium-trophy {
+            font-size: 1.8rem;
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="noise"></div>
+<div id="flash-layer" class="flash-overlay"></div>
+
+<button class="config-btn" onclick="toggleConfigModal()">
+    <i class="fa-solid fa-gear"></i>
+</button>
+
+<div id="config-modal" class="config-modal">
+    <div class="config-card">
+        <h2 style="font-family: var(--font-title); font-size: 2rem; margin-bottom: 15px; text-align: center; color: var(--navy-dark);">⚙️ PAINEL HOST</h2>
+        
+        <div class="config-group">
+            <label>Pontos para Vencer (1º Lugar):</label>
+            <div class="config-btns-grid" style="grid-template-columns: repeat(3, 1fr);">
+                <button type="button" class="config-option-btn" id="target-btn-50" onclick="setSetting('targetScore', 50)">50 pts</button>
+                <button type="button" class="config-option-btn active" id="target-btn-100" onclick="setSetting('targetScore', 100)">100 pts</button>
+                <button type="button" class="config-option-btn" id="target-btn-150" onclick="setSetting('targetScore', 150)">150 pts</button>
+            </div>
+        </div>
+
+        <div class="config-group">
+            <label>Sons do Jogo:</label>
+            <div class="config-btns-grid">
+                <button type="button" class="config-option-btn active" id="snd-btn-true" onclick="setSetting('sound', true)">Ativado</button>
+                <button type="button" class="config-option-btn" id="snd-btn-false" onclick="setSetting('sound', false)">Desativado</button>
+            </div>
+        </div>
+
+        <div class="config-group">
+            <label>Avanço de Resposta:</label>
+            <div class="config-btns-grid">
+                <button type="button" class="config-option-btn active" id="adv-btn-auto" onclick="setSetting('advance', 'auto')">Automático</button>
+                <button type="button" class="config-option-btn" id="adv-btn-manual" onclick="setSetting('advance', 'manual')">Manual (Click)</button>
+            </div>
+        </div>
+
+        <div class="config-group">
+            <label>Tempo por Pergunta:</label>
+            <div class="config-btns-grid" style="grid-template-columns: repeat(3, 1fr);">
+                <button type="button" class="config-option-btn" id="time-btn-5" onclick="setSetting('timer', 5)">5s</button>
+                <button type="button" class="config-option-btn active" id="time-btn-10" onclick="setSetting('timer', 10)">10s</button>
+                <button type="button" class="config-option-btn" id="time-btn-20" onclick="setSetting('timer', 20)">20s</button>
+            </div>
+        </div>
+
+        <button class="btn btn-safe" style="margin-top: 15px; margin-bottom: 0;" onclick="toggleConfigModal()">SALVAR E FECHAR</button>
+    </div>
+</div>
+
+<div class="island-container">
+    <div class="island" id="dynamic-island" onclick="toggleIsland(event)">
+        <div class="island-compact">
+            <i class="fa-solid fa-trophy island-icon"></i>
+            <span class="island-title">RANKING</span>
+        </div>
+        <div class="island-content" id="island-participants-list">
+        </div>
+    </div>
+</div>
+
+<audio id="snd-click" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"></audio>
+<audio id="snd-strike" src="https://assets.mixkit.co/active_storage/sfx/951/951-preview.mp3"></audio>
+<audio id="snd-safe" src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3"></audio>
+<audio id="snd-roulette" src="https://assets.mixkit.co/active_storage/sfx/123/123-preview.mp3" loop></audio>
+
+<div id="screen-lobby" class="screen active">
+    <div style="margin-bottom: 15px; opacity: 0.8; letter-spacing: 3px; font-weight: 700; font-size: 0.85rem; color: var(--yellow-accent);">SIMULADO GAMIFICADO</div>
+    <h1>ENEMZEIRO</h1>
+    <p id="lobby-text" style="margin-bottom: 25px; opacity: 0.9; font-weight: 600;">Prepare-se para testar seus conhecimentos em equipe!</p>
+    <button class="btn btn-hard" style="max-width: 320px;" onclick="initLocalGame()">INICIAR TESTE LOCAL</button>
+</div>
+
+<div id="screen-mode-selection" class="screen">
+    <div style="margin-bottom: 15px; opacity: 0.8; letter-spacing: 3px; font-weight: 700; font-size: 0.85rem; color: var(--yellow-accent);">SELEÇÃO DE ÁREA</div>
+    <h1>ÁREA DO ENEM</h1>
+    <div class="card">
+        <button class="btn btn-safe" onclick="selectGameMode('humanas')"><i class="fa-solid fa-book"></i> HUMANAS / LINGUAGENS</button>
+        <button class="btn btn-hard" onclick="selectGameMode('exatas')"><i class="fa-solid fa-calculator"></i> NATUREZA / EXATAS</button>
+        <p style="font-size: 0.8rem; opacity: 0.7; margin-top: 15px; margin-bottom: 0;">O modo define as perguntas do simulado que serão exibidas.</p>
+    </div>
+</div>
+
+<div id="screen-game" class="screen">
+    <div id="mega-timer" class="bg-mega-timer">10</div>
+    <div id="current-player-name" style="font-family: var(--font-title); font-size: 3rem; margin-bottom: 5px; color: #ffffff; text-transform: uppercase; z-index: 2;">...</div>
+    
+    <div class="strikes-container" id="game-strikes-display">
+        <i class="fa-solid fa-xmark strike-skull" id="s1"></i>
+        <i class="fa-solid fa-xmark strike-skull" id="s2"></i>
+        <i class="fa-solid fa-xmark strike-skull" id="s3"></i>
+    </div>
+    
+    <div class="card">
+        <div id="challenge-text" style="font-size: 1.15rem; font-weight: 600; line-height: 1.4; text-align: left; color: var(--navy-dark);">...</div>
+    </div>
+
+    <div id="controls-area" style="width: 100%; max-width: 420px; margin-top: 10px; z-index: 2;"></div>
+</div>
+
+<div id="screen-bottle-spin" class="screen">
+    <div class="bottle-icon-container">
+        <i class="fa-solid fa-pen-nib"></i>
+    </div>
+    <h2 style="font-family: var(--font-title); font-size: 2.5rem; font-weight: 700; margin-top: 30px; text-transform: uppercase; letter-spacing: 1px;">CORRIGINDO RESPOSTA...</h2>
+</div>
+
+<div id="screen-roulette" class="screen">
+    <i class="fa-solid fa-triangle-exclamation" style="font-size: 6rem; color: var(--yellow-accent); margin-bottom: 20px; filter: drop-shadow(0 0 15px rgba(255,171,0,0.5));"></i>
+    <h2 style="font-family: var(--font-title); letter-spacing: 2px; font-weight: 700; font-size: 2.8rem; text-transform: uppercase;">SORTEANDO<br>PUNIÇÃO DE ESTUDO</h2>
+</div>
+
+<div id="screen-result" class="screen">
+    <div id="result-content" style="width: 100%; max-width: 450px;"></div>
+    <div id="manual-next-container" style="margin-top: 20px; width: 100%; max-width: 350px; display: none;">
+        <button class="btn btn-hard" onclick="nextTurn()">PRÓXIMA PERGUNTA ➔</button>
+    </div>
+</div>
+
+<div id="screen-eliminated" class="screen">
+    <div class="elimination-card">
+        <i class="fa-solid fa-user-xmark" style="font-size: 4.5rem; color: #ff4d4d; margin-bottom: 15px;"></i>
+        <h2 style="font-family: var(--font-title); font-size: 2.8rem; color: #ff4d4d; line-height: 1;">ALUNO ELIMINADO!</h2>
+        <p id="eliminated-player-name" style="font-size: 1.5rem; font-weight: 800; text-transform: uppercase; margin-top: 10px; color: var(--navy-dark);">ESTUDANTE</p>
+        <p style="font-size: 0.95rem; font-weight: 600; margin-top: 10px; color: #666;">Atingiu o limite de 3 erros acumulados no simulado ENEM.</p>
+        <div style="background: rgba(255, 77, 77, 0.1); padding: 12px; border-radius: 12px; margin-top: 15px; font-weight: 700; color: #ff4d4d; font-size: 0.85rem;">
+            VOCÊ ESTÁ FORA DAS PRÓXIMAS RODADAS
+        </div>
+    </div>
+    <div id="eliminated-next-container" style="margin-top: 20px; width: 100%; max-width: 350px;">
+        <button class="btn btn-hard" onclick="nextTurn()">CONTINUAR SIMULADO ➔</button>
+    </div>
+</div>
+
+<div id="screen-winner" class="screen">
+    <i class="fa-solid fa-crown" style="font-size: 4rem; margin-bottom: 10px; color: var(--yellow-accent); filter: drop-shadow(0 0 20px rgba(255,171,0,0.6));"></i>
+    <h1 style="margin-bottom: 10px;">PÓDIO ENEMZEIRO</h1>
+    
+    <div class="podium-container" id="podium-display">
+    </div>
+
+    <button class="btn btn-hard" style="margin-top: 20px; width: 80%; max-width: 320px;" onclick="location.reload()">NOVO SIMULADO</button>
+</div>
+
+<script>
+    const localQuestions = {
+        humanas: [
+            "Linguagens: Qual a função de linguagem focada no próprio código da mensagem?",
+            "História: Qual movimento resultou na abolição da escravidão no Brasil em 1888?",
+            "Geografia: O que caracteriza o fenômeno do Êxodo Rural?",
+            "Filosofia: Quem formulou o mito da caverna?"
+        ],
+        exatas: [
+            "Matemática: Se uma função de primeiro grau é f(x) = 2x + 3, qual o valor de f(5)?",
+            "Física: Qual lei diz que para toda ação há uma reação de mesma intensidade e sentido oposto?",
+            "Química: Qual é a ligação entre átomos formada pelo compartilhamento de elétrons?",
+            "Biologia: Qual organela celular é responsável pela respiração aeróbica?"
+        ]
+    };
+
+    const localPunishments = [
+        "EXPLIQUE O CONCEITO DE MITOCÔNDRIA PARA O GRUPO",
+        "ESCREVA UMA INTRODUÇÃO DE REDAÇÃO EM 1 MINUTO",
+        "PAGUE 10 POLICHINELOS PARA CADA RIVAL",
+        "CITE 3 PRESIDENTES DO BRASIL SEM GAGUEJAR",
+        "LEIA O PRÓXIMO ENUNCIADO CANTANDO"
+    ];
+
+    let gameState = {
+        players: {
+            "p1": { name: "Estudante 1", strikes: 0, score: 0, eliminated: false },
+            "p2": { name: "Estudante 2", strikes: 1, score: 0, eliminated: false },
+            "p3": { name: "Estudante 3", strikes: 2, score: 0, eliminated: false }
+        },
+        myId: "p1",
+        roundPlayer: "p1",
+        nomercy_status: "lobby",
+        loadedChallenges: [],
+        roundVotes: {}
+    };
+
+    let settings = {
+        soundEnabled: true,
+        advanceMode: 'auto',
+        timerDuration: 10,
+        targetScore: 100
+    };
+
+    let timerInterval = null;
+    let timeRemaining = 10;
+    let rouletteInterval = null;
+
+    function toggleConfigModal() {
+        playSound('snd-click');
+        const modal = document.getElementById('config-modal');
+        modal.classList.toggle('active');
+    }
+
+    function setSetting(type, value) {
+        playSound('snd-click');
+        if(type === 'sound') {
+            settings.soundEnabled = value;
+            document.getElementById('snd-btn-true').className = value ? 'config-option-btn active' : 'config-option-btn';
+            document.getElementById('snd-btn-false').className = !value ? 'config-option-btn active' : 'config-option-btn';
+        } else if(type === 'advance') {
+            settings.advanceMode = value;
+            document.getElementById('adv-btn-auto').className = value === 'auto' ? 'config-option-btn active' : 'config-option-btn';
+            document.getElementById('adv-btn-manual').className = value === 'manual' ? 'config-option-btn active' : 'config-option-btn';
+        } else if(type === 'timer') {
+            settings.timerDuration = value;
+            [5, 10, 20].forEach(t => {
+                document.getElementById(`time-btn-${t}`).className = t === value ? 'config-option-btn active' : 'config-option-btn';
+            });
+        } else if(type === 'targetScore') {
+            settings.targetScore = value;
+            [50, 100, 150].forEach(s => {
+                document.getElementById(`target-btn-${s}`).className = s === value ? 'config-option-btn active' : 'config-option-btn';
+            });
+        }
+    }
+
+    const playSound = (id) => {
+        if(!settings.soundEnabled) return;
+        const audio = document.getElementById(id);
+        if(audio) {
+            audio.currentTime = 0;
+            audio.play().catch(e => console.log("Som bloqueado"));
+        }
+    };
+
+    const stopSound = (id) => {
+        const audio = document.getElementById(id);
+        if(audio) { audio.pause(); audio.currentTime = 0; }
+    };
+
+    function toggleIsland(event) {
+        if(event) event.stopPropagation();
+        const island = document.getElementById('dynamic-island');
+        if(island) {
+            island.classList.toggle('expanded');
+            playSound('snd-click');
+        }
+    }
+
+    document.addEventListener('click', (e) => {
+        const island = document.getElementById('dynamic-island');
+        if (island && island.classList.contains('expanded') && !island.contains(e.target)) {
+            island.classList.remove('expanded');
+        }
+    });
+
+    function showScreen(id) {
+        stopTimer();
+        document.querySelectorAll('.screen').forEach(s => {
+            s.classList.remove('active');
+            s.style.display = 'none';
+        });
+        const target = document.getElementById(id);
+        if(target) {
+            target.style.display = 'flex';
+            setTimeout(() => target.classList.add('active'), 10);
+        }
+        document.body.className = '';
+        document.getElementById('flash-layer').style.background = 'transparent';
+        if(rouletteInterval) { clearInterval(rouletteInterval); rouletteInterval = null; stopSound('snd-roulette'); }
+    }
+
+    function initLocalGame() {
+        playSound('snd-click');
+        showScreen('screen-mode-selection');
+        updateIslandUI();
+    }
+
+    function updateIslandUI() {
+        const islandList = document.getElementById('island-participants-list');
+        if(!islandList) return;
+
+        const sortedPlayers = Object.entries(gameState.players).sort((a, b) => {
+            if (a[1].eliminated !== b[1].eliminated) return a[1].eliminated ? 1 : -1;
+            return (b[1].score || 0) - (a[1].score || 0);
+        });
+
+        let htmlList = '';
+        sortedPlayers.forEach(([id, player], index) => {
+            const sCount = player.strikes || 0;
+            const isEliminated = player.eliminated;
+            htmlList += `
+                <div class="island-player-row ${isEliminated ? 'eliminated-row' : ''}">
+                    <div style="display:flex; align-items:center;">
+                        <span class="island-rank-badge">${isEliminated ? '❌' : '#' + (index + 1)}</span>
+                        <span class="island-player-name">${player.name}</span>
+                        <span class="island-score-tag">(${player.score || 0} pts)</span>
+                    </div>
+                    <div class="island-skulls">
+                        <i class="fa-solid fa-xmark ${sCount >= 1 ? 'active-skull' : ''}"></i>
+                        <i class="fa-solid fa-xmark ${sCount >= 2 ? 'active-skull' : ''}"></i>
+                        <i class="fa-solid fa-xmark ${sCount >= 3 ? 'active-skull' : ''}"></i>
+                    </div>
+                </div>
+            `;
+        });
+        islandList.innerHTML = htmlList;
+    }
+
+    function selectGameMode(mode) {
+        playSound('snd-click');
+        gameState.loadedChallenges = localQuestions[mode] || localQuestions.humanas;
+        gameState.nomercy_status = 'round';
+        startNewRound();
+    }
+
+    function startTimer() {
+        stopTimer();
+        timeRemaining = settings.timerDuration;
+        const megaTimer = document.getElementById('mega-timer');
+        megaTimer.innerText = timeRemaining;
+        megaTimer.classList.remove('danger');
+
+        timerInterval = setInterval(() => {
+            timeRemaining--;
+            megaTimer.innerText = timeRemaining;
+
+            if (timeRemaining <= 3) {
+                megaTimer.classList.add('danger');
+            }
+
+            if (timeRemaining <= 0) {
+                stopTimer();
+                castVote('fail');
+            }
+        }, 1000);
+    }
+
+    function stopTimer() {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+    }
+
+    function getActivePlayers() {
+        return Object.entries(gameState.players).filter(([_, p]) => !p.eliminated);
+    }
+
+    function checkPodiumTrigger() {
+        const sorted = Object.entries(gameState.players).sort((a, b) => b[1].score - a[1].score);
+        const p1Score = sorted[0] ? sorted[0][1].score : 0;
+        const p2Score = sorted[1] ? sorted[1][1].score : 0;
+        const p3Score = sorted[2] ? sorted[2][1].score : 0;
+
+        const target = settings.targetScore;
+        const target75 = Math.floor(target * 0.75);
+        const target50 = Math.floor(target * 0.50);
+
+        // Se o 1º atingir a pontuação máxima (ou mais) E o 2º e 3º já têm 75% e 50% da pontuação, encerra automático!
+        if (p1Score >= target && p2Score >= target75 && p3Score >= target50) {
+            return true;
+        }
+        return false;
+    }
+
+    function startNewRound() {
+        const activePlayers = getActivePlayers();
+
+        if (activePlayers.length <= 1 || checkPodiumTrigger()) {
+            showPodium();
+            return;
+        }
+
+        if (gameState.players[gameState.roundPlayer].eliminated) {
+            const activeKeys = activePlayers.map(([id]) => id);
+            gameState.roundPlayer = activeKeys[0];
+        }
+
+        gameState.roundVotes = {};
+        const randomQ = gameState.loadedChallenges[Math.floor(Math.random() * gameState.loadedChallenges.length)];
+        
+        gameState.roundChallenge = randomQ;
+        gameState.currentPunishment = localPunishments[Math.floor(Math.random() * localPunishments.length)];
+
+        showScreen('screen-game');
+        renderGameRound();
+        updateIslandUI();
+        startTimer();
+    }
+
+    function renderGameRound() {
+        const pid = gameState.roundPlayer;
+        const player = gameState.players[pid];
+        const strikes = player.strikes || 0;
+
+        document.getElementById('current-player-name').innerText = player.name;
+        document.getElementById('challenge-text').innerText = gameState.roundChallenge;
+        
+        document.getElementById('s1').className = strikes >= 1 ? 'fa-solid fa-xmark strike-skull active' : 'fa-solid fa-xmark strike-skull';
+        document.getElementById('s2').className = strikes >= 2 ? 'fa-solid fa-xmark strike-skull active' : 'fa-solid fa-xmark strike-skull';
+        document.getElementById('s3').className = strikes >= 3 ? 'fa-solid fa-xmark strike-skull active' : 'fa-solid fa-xmark strike-skull';
+
+        const controls = document.getElementById('controls-area');
+
+        if(pid === gameState.myId) {
+            controls.innerHTML = `<p style="font-size:0.95rem; opacity:0.9; font-weight:700;">Sua vez de responder! Os outros alunos vão avaliar.</p>`;
+        } else {
+            controls.innerHTML = `
+                <div class="vote-row">
+                    <div class="vote-btns">
+                        <button class="btn btn-fail" onclick="castVote('fail')">ERROU</button>
+                        <button class="btn btn-pass" onclick="castVote('pass')">ACERTOU</button>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    function castVote(vote) {
+        stopTimer();
+        playSound('snd-click');
+        
+        showScreen('screen-bottle-spin');
+        
+        setTimeout(() => {
+            if(vote === 'fail') {
+                showScreen('screen-roulette');
+                playSound('snd-roulette');
+                setTimeout(() => {
+                    const pid = gameState.roundPlayer;
+                    gameState.players[pid].strikes += 1;
+                    
+                    if(gameState.players[pid].strikes >= 3) {
+                        gameState.players[pid].eliminated = true;
+                        updateIslandUI();
+                        showScreen('screen-eliminated');
+                        playSound('snd-strike');
+                        document.getElementById('eliminated-player-name').innerText = gameState.players[pid].name;
+                        return;
+                    }
+
+                    showScreen('screen-result');
+                    playSound('snd-strike');
+                    document.body.classList.add('strike-bg');
+                    document.getElementById('result-content').innerHTML = `
+                        <div>
+                            <i class="fa-solid fa-triangle-exclamation" style="font-size:5rem; color:#ff4d4d; margin-bottom:15px; filter: drop-shadow(0 0 15px rgba(255,77,77,0.5));"></i>
+                            <h1 style="font-size:3rem; color:#ff4d4d;">${timeRemaining <= 0 ? 'TEMPO ESGOTADO!' : 'ERROU A QUESTÃO'}</h1>
+                            <div class="punishment-box">
+                                <h3 style="color:var(--navy-dark); font-family: var(--font-title); font-size:1.8rem; margin-bottom:5px;">PUNIÇÃO DE ESTUDO</h3>
+                                <p style="font-size:1.2rem; font-weight:700; color:var(--navy-dark);">${gameState.currentPunishment}</p>
+                            </div>
+                        </div>
+                    `;
+                    handlePostResult();
+                }, 2000);
+            } else {
+                const pid = gameState.roundPlayer;
+                gameState.players[pid].score = (gameState.players[pid].score || 0) + 5; // ADICIONA 5 PONTOS
+                updateIslandUI();
+
+                showScreen('screen-result');
+                playSound('snd-safe');
+                document.body.classList.add('safe-bg');
+                document.getElementById('result-content').innerHTML = `
+                    <i class="fa-solid fa-check-circle" style="font-size:5rem; color:#1ed760; margin-bottom:15px; filter: drop-shadow(0 0 15px rgba(30,215,96,0.5));"></i>
+                    <h1 style="font-size:3.5rem; color:#1ed760;">RESPOSTA CORRETA</h1>
+                    <p style="font-weight:700; font-size:1.3rem;">+5 PONTOS PARA O ESTUDANTE!</p>
+                `;
+                handlePostResult();
+            }
+        }, 1200);
+    }
+
+    function handlePostResult() {
+        const manualBtnContainer = document.getElementById('manual-next-container');
+        if(settings.advanceMode === 'manual') {
+            manualBtnContainer.style.display = 'block';
+        } else {
+            manualBtnContainer.style.display = 'none';
+            setTimeout(nextTurn, 3500);
+        }
+    }
+
+    function nextTurn() {
+        playSound('snd-click');
+        const pKeys = Object.keys(gameState.players);
+        let currIdx = pKeys.indexOf(gameState.roundPlayer);
+        
+        for(let i = 1; i <= pKeys.length; i++) {
+            let nextIndex = (currIdx + i) % pKeys.length;
+            let nextPid = pKeys[nextIndex];
+            if(!gameState.players[nextPid].eliminated) {
+                gameState.roundPlayer = nextPid;
+                break;
+            }
+        }
+        
+        startNewRound();
+    }
+
+    function showPodium() {
+        showScreen('screen-winner');
+        playSound('snd-safe');
+
+        // Ordena pela pontuação para definir as colocações no pódio
+        const sorted = Object.entries(gameState.players).sort((a, b) => b[1].score - a[1].score);
+
+        const first = sorted[0] ? sorted[0][1] : { name: "-", score: 0 };
+        const second = sorted[1] ? sorted[1][1] : { name: "-", score: 0 };
+        const third = sorted[2] ? sorted[2][1] : { name: "-", score: 0 };
+
+        const podiumDisplay = document.getElementById('podium-display');
+        podiumDisplay.innerHTML = `
+            <!-- 2º LUGAR -->
+            <div class="podium-slot">
+                <div class="podium-player-name">${second.name}</div>
+                <div class="podium-player-pts">${second.score} pts</div>
+                <div class="podium-bar podium-2">
+                    <i class="fa-solid fa-medal podium-trophy" style="color: #E0E0E0;"></i>
+                    2º
+                </div>
+            </div>
+
+            <!-- 1º LUGAR -->
+            <div class="podium-slot">
+                <div class="podium-player-name">${first.name}</div>
+                <div class="podium-player-pts">${first.score} pts</div>
+                <div class="podium-bar podium-1">
+                    <i class="fa-solid fa-trophy podium-trophy" style="color: var(--yellow-accent);"></i>
+                    1º
+                </div>
+            </div>
+
+            <!-- 3º LUGAR -->
+            <div class="podium-slot">
+                <div class="podium-player-name">${third.name}</div>
+                <div class="podium-player-pts">${third.score} pts</div>
+                <div class="podium-bar podium-3">
+                    <i class="fa-solid fa-award podium-trophy" style="color: #CD7F32;"></i>
+                    3º
+                </div>
+            </div>
+        `;
+    }
+</script>
+</body>
+</html>
