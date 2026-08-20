@@ -39,7 +39,6 @@
             transition: background 0.5s ease;
         }
 
-        /* BANNER DE NOTIFICAÇÃO IN-INTERFACE */
         .toast-notification {
             position: fixed;
             top: -70px;
@@ -60,7 +59,6 @@
         }
         .toast-notification.active { top: 20px; }
 
-        /* DYNAMIC ISLAND */
         .island-container {
             position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
             z-index: 9999; width: 100%; display: flex; justify-content: center; pointer-events: none;
@@ -129,7 +127,6 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* BOTAO E MODAL DE CONFIGURAÇÕES */
         .config-btn {
             position: fixed;
             bottom: 20px;
@@ -490,7 +487,6 @@
 <div class="noise"></div>
 <div id="flash-layer" class="flash-overlay"></div>
 
-<!-- CONTAINER DE NOTIFICAÇÕES (TOAST) -->
 <div id="toast-banner" class="toast-notification">
     <i class="fa-solid fa-circle-exclamation"></i>
     <span id="toast-msg">Mensagem de Notificação</span>
@@ -504,7 +500,6 @@
     <div class="config-card">
         <h2 style="font-family: var(--font-title); font-size: 2rem; margin-bottom: 15px; text-align: center; color: var(--navy-dark);">⚙️ CONFIGURAÇÕES</h2>
         
-        <!-- SOM LIBERADO PARA QUALQUER PARTICIPANTE -->
         <div class="config-group">
             <label>Sons do Jogo (Geral):</label>
             <div class="config-btns-grid">
@@ -513,7 +508,6 @@
             </div>
         </div>
 
-        <!-- OPÇÕES EXCLUSIVAS DO HOST (BLOQUEADAS PARA DEMAIS) -->
         <div id="host-only-settings">
             <div class="config-group">
                 <label>Pontos para Vencer (1º Lugar):</label>
@@ -562,7 +556,6 @@
 <audio id="snd-safe" src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3"></audio>
 <audio id="snd-roulette" src="https://assets.mixkit.co/active_storage/sfx/123/123-preview.mp3" loop></audio>
 
-<!-- TELA INICIAL (AUTH & SALAS) -->
 <div id="screen-auth" class="screen active">
     <div style="margin-bottom: 15px; opacity: 0.8; letter-spacing: 3px; font-weight: 700; font-size: 0.85rem; color: var(--yellow-accent);">SIMULADO GAMIFICADO</div>
     <h1>ENEMZEIRO</h1>
@@ -575,7 +568,6 @@
     </div>
 </div>
 
-<!-- LOBBY DA SALA -->
 <div id="screen-lobby" class="screen">
     <div style="margin-bottom: 5px; opacity: 0.8; letter-spacing: 3px; font-weight: 700; font-size: 0.85rem; color: var(--yellow-accent);">SALA DE ESPERA</div>
     <div class="card">
@@ -593,7 +585,6 @@
     </div>
 </div>
 
-<!-- SELEÇÃO DE MODO (HOST) -->
 <div id="screen-mode-selection" class="screen">
     <div style="margin-bottom: 15px; opacity: 0.8; letter-spacing: 3px; font-weight: 700; font-size: 0.85rem; color: var(--yellow-accent);">SELEÇÃO DE ÁREA</div>
     <h1>ÁREA DO ENEM</h1>
@@ -604,7 +595,6 @@
     </div>
 </div>
 
-<!-- TELA DA PERGUNTA -->
 <div id="screen-game" class="screen">
     <div id="mega-timer" class="bg-mega-timer">10</div>
     <div id="current-player-name" style="font-family: var(--font-title); font-size: 3rem; margin-bottom: 5px; color: #ffffff; text-transform: uppercase; z-index: 2;">...</div>
@@ -722,7 +712,6 @@
     let timeRemaining = 10;
     let rouletteInterval = null;
 
-    // SISTEMA DE NOTIFICAÇÃO DENTRO DA INTERFACE (TOAST)
     function showToast(msg) {
         const toast = document.getElementById('toast-banner');
         document.getElementById('toast-msg').innerText = msg;
@@ -757,7 +746,6 @@
         return code;
     }
 
-    // RESTAURAÇÃO DE SESSÃO AO RECARREGAR PÁGINA
     window.addEventListener('DOMContentLoaded', async () => {
         const savedRoom = localStorage.getItem('ez_room');
         const savedUser = localStorage.getItem('ez_user');
@@ -852,6 +840,13 @@
 
             updateIslandUI();
             updateConfigUI();
+
+            // ESCUTA DE VOTOS - O HOST REAGE AO VOTO REGISTRADO NO BANCO
+            if(amIHost && data.pendingVote) {
+                const vote = data.pendingVote;
+                update(ref(db, `rooms/${currentRoomCode}`), { pendingVote: null });
+                processVoteByHost(vote);
+            }
 
             if(data.status === 'lobby') {
                 showScreen('screen-lobby');
@@ -1024,50 +1019,55 @@
         }
     }
 
+    // REGISTRO DE VOTO DIRETO NO FIREBASE (FUNCIONA NO CELULAR DE QUALQUER JOGADOR)
     window.castVote = async (vote) => {
         stopTimer();
         playSound('snd-click');
+        await update(ref(db, `rooms/${currentRoomCode}`), { pendingVote: vote });
+    };
 
-        if(amIHost) {
-            await update(ref(db, `rooms/${currentRoomCode}`), { status: 'bottle_spin' });
-            
-            setTimeout(async () => {
-                const pid = roomDataState.roundPlayer;
-                const pData = roomDataState.players[pid];
+    // PROCESSAMENTO DO VOTO PELO HOST
+    async function processVoteByHost(vote) {
+        if(!amIHost) return;
 
-                if(vote === 'fail') {
-                    await update(ref(db, `rooms/${currentRoomCode}`), { status: 'roulette' });
-                    setTimeout(async () => {
-                        const newStrikes = (pData.strikes || 0) + 1;
-                        const isElim = newStrikes >= 3;
+        await update(ref(db, `rooms/${currentRoomCode}`), { status: 'bottle_spin' });
+        
+        setTimeout(async () => {
+            const pid = roomDataState.roundPlayer;
+            const pData = roomDataState.players[pid];
 
-                        await update(ref(db, `rooms/${currentRoomCode}/players/${pid}`), {
-                            strikes: newStrikes,
-                            eliminated: isElim
-                        });
+            if(vote === 'fail') {
+                await update(ref(db, `rooms/${currentRoomCode}`), { status: 'roulette' });
+                setTimeout(async () => {
+                    const newStrikes = (pData.strikes || 0) + 1;
+                    const isElim = newStrikes >= 3;
 
-                        if(isElim) {
-                            await update(ref(db, `rooms/${currentRoomCode}`), { status: 'eliminated' });
-                        } else {
-                            await update(ref(db, `rooms/${currentRoomCode}`), { status: 'result_fail' });
-                        }
+                    await update(ref(db, `rooms/${currentRoomCode}/players/${pid}`), {
+                        strikes: newStrikes,
+                        eliminated: isElim
+                    });
 
-                        if(settings.advanceMode === 'auto') {
-                            setTimeout(nextTurn, 3500);
-                        }
-                    }, 2000);
-                } else {
-                    const newScore = (pData.score || 0) + 5;
-                    await update(ref(db, `rooms/${currentRoomCode}/players/${pid}`), { score: newScore });
-                    await update(ref(db, `rooms/${currentRoomCode}`), { status: 'result_pass' });
+                    if(isElim) {
+                        await update(ref(db, `rooms/${currentRoomCode}`), { status: 'eliminated' });
+                    } else {
+                        await update(ref(db, `rooms/${currentRoomCode}`), { status: 'result_fail' });
+                    }
 
                     if(settings.advanceMode === 'auto') {
                         setTimeout(nextTurn, 3500);
                     }
+                }, 2000);
+            } else {
+                const newScore = (pData.score || 0) + 5;
+                await update(ref(db, `rooms/${currentRoomCode}/players/${pid}`), { score: newScore });
+                await update(ref(db, `rooms/${currentRoomCode}`), { status: 'result_pass' });
+
+                if(settings.advanceMode === 'auto') {
+                    setTimeout(nextTurn, 3500);
                 }
-            }, 1200);
-        }
-    };
+            }
+        }, 1200);
+    }
 
     window.nextTurn = async () => {
         if(!amIHost) return;
